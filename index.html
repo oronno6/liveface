@@ -2,1199 +2,380 @@
 <html lang="bn">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI রিয়ালিস্টিক ফেস সোয়াপ স্টুডিও | Photorealistic Face Masking</title>
-    <!-- Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI রিয়ালিস্টিক ফেস মাস্কিং স্টুডিও</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Hind Siliguri & Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- MediaPipe Face Mesh & Camera Utils -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-
     <style>
-        body {
-            font-family: 'Hind Siliguri', 'Inter', sans-serif;
-            background-color: #070a12;
-            color: #f8fafc;
-            overflow-x: hidden;
-            user-select: none;
-        }
-        ::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 9999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #6366f1;
-        }
-        input[type="range"] {
-            -webkit-appearance: none;
-            background: #1e293b;
-            height: 6px;
-            border-radius: 999px;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #6366f1;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(99, 102, 241, 0.7);
-            transition: transform 0.15s ease;
-        }
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-        }
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.82);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .character-card.active {
-            border-color: #6366f1;
-            background: rgba(99, 102, 241, 0.2);
-            box-shadow: 0 0 22px rgba(99, 102, 241, 0.35);
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+        body { font-family: 'Hind Siliguri', sans-serif; }
+        .glass-panel { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .custom-slider::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #6366f1; cursor: pointer; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center p-2 sm:p-4 select-none">
 
-    <!-- Top Navbar -->
-    <header class="glass-panel sticky top-0 z-40 px-4 py-3 flex items-center justify-between border-b border-slate-800/80">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                <i data-lucide="user-check" class="w-5 h-5 text-white"></i>
+    <!-- Header -->
+    <header class="w-full max-w-md glass-panel rounded-2xl p-4 mb-3 flex items-center justify-between shadow-xl">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </div>
             <div>
-                <h1 class="text-base sm:text-xl font-bold bg-gradient-to-r from-white via-indigo-200 to-purple-200 bg-clip-text text-transparent">
-                    AI রিয়ালিস্টিক ফেস স্টুডিও
-                </h1>
-                <p class="text-[11px] sm:text-xs text-slate-400 hidden sm:block">ফটোরিয়ালিস্টিক লাইভ ফেস সোয়াপ ও স্কিন ব্লেন্ডিং ইঞ্জিন</p>
+                <h1 class="font-bold text-lg leading-tight">AI রিয়ালিস্টিক ফেস স্টুডিও</h1>
+                <p class="text-xs text-indigo-400 font-medium" id="statusText">ক্যামেরা বন্ধ আছে</p>
             </div>
         </div>
-
-        <div class="flex items-center gap-2 sm:gap-3">
-            <div id="statusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-medium text-slate-300">
-                <span id="statusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                <span id="statusText">ক্যামেরা বন্ধ আছে</span>
-            </div>
-
-            <button id="langToggle" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-indigo-300 border border-slate-700 transition">
-                EN / বাং
-            </button>
+        <div class="px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-emerald-400 flex items-center gap-1.5 shadow-inner">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> মাস্ক রেডি
         </div>
     </header>
 
-    <!-- Toast Notification Container -->
-    <div id="toastContainer" class="fixed top-16 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-    <!-- Main Workspace -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
-        
-        <!-- Left Panel: Photorealistic Human Gallery & Adjustments -->
-        <section class="lg:col-span-4 flex flex-col gap-4 order-2 lg:order-1">
-            <div class="glass-panel rounded-2xl p-4 flex flex-col gap-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                        <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
-                        <span data-i18n="selectChar">রিয়ালিস্টিক ফেস সিলেক্ট করুন</span>
-                    </h2>
-                    <!-- Filter Tabs -->
-                    <div class="flex bg-slate-950/90 p-1 rounded-xl border border-slate-800 text-xs">
-                        <button onclick="filterCharacters('all')" class="filter-btn active px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium transition" data-filter="all" data-i18n="filterAll">সব</button>
-                        <button onclick="filterCharacters('male')" class="filter-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition" data-filter="male" data-i18n="filterMale">ছেলে</button>
-                        <button onclick="filterCharacters('female')" class="filter-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition" data-filter="female" data-i18n="filterFemale">মেয়ে</button>
-                    </div>
+    <!-- Main Viewport -->
+    <main class="w-full max-w-md glass-panel rounded-2xl p-3 mb-4 shadow-2xl relative flex flex-col items-center">
+        <div class="relative w-full aspect-[3/4] bg-slate-900 rounded-xl overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center">
+            <video id="webcam" class="absolute inset-0 w-full h-full object-cover -scale-x-100 opacity-0" playsinline></video>
+            <canvas id="outputCanvas" class="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></canvas>
+            
+            <!-- Placeholder Overlay -->
+            <div id="placeholderOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-20 text-center p-6 transition-all duration-300">
+                <div class="w-16 h-16 rounded-full bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center mb-3 text-indigo-400">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                 </div>
-
-                <!-- Custom Real Face Upload -->
-                <label for="customFaceInput" class="group cursor-pointer flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border-2 border-dashed border-indigo-500/50 hover:border-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all">
-                    <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center group-hover:scale-110 transition shrink-0">
-                        <i data-lucide="image-plus" class="w-5 h-5 text-white"></i>
-                    </div>
-                    <div class="text-left">
-                        <div class="text-xs sm:text-sm font-bold text-indigo-200" data-i18n="uploadTitle">+ নিজের বা অন্য কারো ফেস আপলোড করুন</div>
-                        <div class="text-[11px] text-slate-400" data-i18n="uploadSub">যেকোনো আসল মানুষের ছবি আপলোড করলে অটো ফেস সোয়াপ হবে</div>
-                    </div>
-                    <input type="file" id="customFaceInput" accept="image/jpeg,image/png,image/webp" class="hidden">
-                </label>
-
-                <!-- Female Hair Wig Style Selector (Auto-activates for Female characters) -->
-                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 text-xs font-semibold text-indigo-200">
-                        <i data-lucide="sparkles" class="w-4 h-4 text-fuchsia-400"></i>
-                        <span data-i18n="hairLabel">মেয়েদের হেয়ার ওভারলে:</span>
-                    </div>
-                    <select id="hairStyleSelect" class="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500">
-                        <option value="auto">অটো (মেয়েদের ফেসে চালু)</option>
-                        <option value="silky_black">লম্বা সিল্কি কালো চুল</option>
-                        <option value="wavy_brown">ওয়েভি ব্রাউন হেয়ার</option>
-                        <option value="layered_bangs">লেয়ার্ড ব্যাংগস ও লং হেয়ার</option>
-                        <option value="off">বন্ধ (Hair Off)</option>
-                    </select>
-                </div>
-
-                <!-- Photorealistic Character Grid -->
-                <div id="characterGrid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
-                    <!-- Immediately populated via JS on load -->
-                </div>
+                <h3 class="font-bold text-base mb-1">রিয়ালিস্টিক ফেস সোয়াপ ও মাস্কিং</h3>
+                <p class="text-xs text-slate-400 mb-4">ক্যারেক্টার সিলেক্ট করে ক্যামেরা চালু করুন। নিখুঁতভাবে ফেসের ওপর মাস্কিং হবে।</p>
+                <button onclick="toggleCamera()" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 rounded-xl font-bold text-sm shadow-lg hover:opacity-90 transition active:scale-95 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    ক্যামেরা চালু করুন (Allow Camera)
+                </button>
             </div>
 
-            <!-- Photorealistic Skin & Mesh Adjustments -->
-            <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3.5">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                        <i data-lucide="sliders" class="w-4 h-4 text-purple-400"></i>
-                        <span data-i18n="adjustments">রিয়ালিস্টিক স্কিন ও ফেস অ্যাডজাস্টমেন্ট</span>
-                    </h3>
-                    <button id="resetAdjustmentsBtn" class="text-xs text-indigo-400 hover:text-indigo-300 underline" data-i18n="reset">রিসেট</button>
-                </div>
+            <!-- Hold to view original face -->
+            <button id="originalBtn" class="absolute top-3 right-3 z-30 px-3 py-1 bg-black/60 backdrop-blur-md border border-white/20 rounded-lg text-xs font-medium hover:bg-black/80 transition hidden">
+                👁️ আসল মুখ দেখুন (Hold)
+            </button>
+        </div>
 
-                <!-- Mask Coverage / Jawline Fit -->
-                <div>
-                    <div class="flex justify-between text-xs text-slate-400 mb-1">
-                        <span data-i18n="maskSize">ফুল ফেস কভারেজ (Jaw & Face Size)</span>
-                        <span id="scaleVal">106%</span>
-                    </div>
-                    <input type="range" id="scaleSlider" min="95" max="125" value="106" class="w-full">
-                </div>
-
-                <!-- Skin Tone Auto-Match -->
-                <div>
-                    <div class="flex justify-between text-xs text-slate-400 mb-1">
-                        <span data-i18n="skinMatch">স্কিন কালার ম্যাচ (Balanced Tone)</span>
-                        <span id="skinMatchVal">70%</span>
-                    </div>
-                    <input type="range" id="skinMatchSlider" min="0" max="100" value="70" class="w-full">
-                </div>
-
-                <!-- Edge Feathering -->
-                <div>
-                    <div class="flex justify-between text-xs text-slate-400 mb-1">
-                        <span data-i18n="feather">বর্ডার স্মুথনেস (Edge Feather)</span>
-                        <span id="featherVal">35%</span>
-                    </div>
-                    <input type="range" id="featherSlider" min="10" max="75" value="35" class="w-full">
-                </div>
-
-                <!-- Brightness / Lighting Match -->
-                <div>
-                    <div class="flex justify-between text-xs text-slate-400 mb-1">
-                        <span data-i18n="brightness">আলো ও ব্রাইটনেস (Brightness)</span>
-                        <span id="brightnessVal">102%</span>
-                    </div>
-                    <input type="range" id="brightnessSlider" min="65" max="140" value="102" class="w-full">
-                </div>
-
-                <!-- Opacity -->
-                <div>
-                    <div class="flex justify-between text-xs text-slate-400 mb-1">
-                        <span data-i18n="opacity">মাস্ক স্বচ্ছতা (Opacity)</span>
-                        <span id="opacityVal">100%</span>
-                    </div>
-                    <input type="range" id="opacitySlider" min="50" max="100" value="100" class="w-full">
-                </div>
-            </div>
-        </section>
-
-        <!-- Right Panel: Live Camera Stage -->
-        <section class="lg:col-span-8 flex flex-col gap-4 order-1 lg:order-2">
-            <div class="glass-panel rounded-2xl p-3 sm:p-4 flex flex-col gap-3">
-                
-                <!-- Viewport Container -->
-                <div id="stageContainer" class="relative w-full aspect-[4/3] sm:aspect-[16/10] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center">
-                    
-                    <video id="inputVideo" class="hidden" playsinline></video>
-                    <canvas id="outputCanvas" class="w-full h-full object-contain"></canvas>
-
-                    <!-- Initial Start Overlay -->
-                    <div id="startOverlay" class="absolute inset-0 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-indigo-950/90 flex flex-col items-center justify-center p-6 text-center z-20">
-                        <div class="w-20 h-20 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/20">
-                            <i data-lucide="camera" class="w-10 h-10 text-indigo-400"></i>
-                        </div>
-                        <h2 class="text-xl sm:text-2xl font-bold text-white mb-2" data-i18n="welcomeTitle">রিয়ালিস্টিক ফেস সোয়াপ শুরু করুন</h2>
-                        <p class="text-xs sm:text-sm text-slate-300 max-w-md mb-6 leading-relaxed" data-i18n="welcomeDesc">
-                            বাম পাশ থেকে বাস্তব মানুষের ফেস সিলেক্ট করুন অথবা গ্যালারি থেকে যেকোনো ছবি আপলোড করুন। ক্যামেরা চালু করলে আপনার মুখের ত্বকের রঙ, চোখ ও ঠোঁটের নড়াচড়ার সাথে একদম আসল মানুষের মতো ফেসটি মিশে যাবে।
-                        </p>
-                        <button id="startCameraBtn" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm sm:text-base shadow-xl shadow-indigo-600/30 flex items-center gap-2.5 transform hover:scale-105 active:scale-95 transition">
-                            <i data-lucide="video" class="w-5 h-5"></i>
-                            <span data-i18n="startCamBtn">ক্যামেরা চালু করুন (Allow Camera)</span>
-                        </button>
-                        <p id="loadingAiText" class="hidden mt-4 text-xs text-indigo-300 flex items-center gap-2">
-                            <svg class="animate-spin h-4 w-4 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
-                            <span>AI ফেস ল্যান্ডমার্ক ও স্কিন ব্লেন্ডিং ইঞ্জিন লোড হচ্ছে...</span>
-                        </p>
-                    </div>
-
-                    <!-- Active Character Floating Pill -->
-                    <div id="activeCharPill" class="hidden absolute top-3 left-3 z-10 glass-panel px-3 py-1.5 rounded-full flex items-center gap-2 text-xs font-semibold text-white">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span id="activeCharLabel">আরিফ</span>
-                    </div>
-
-                    <!-- Hold to Compare (Before / After) -->
-                    <button id="compareBtn" class="hidden absolute top-3 right-3 z-10 glass-panel px-3 py-1.5 rounded-full text-xs font-semibold text-indigo-200 hover:bg-indigo-600/40 active:bg-indigo-600 transition flex items-center gap-1.5">
-                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                        <span data-i18n="compare">আসল মুখ দেখুন (Hold)</span>
-                    </button>
-
-                    <!-- Face Detection Hint -->
-                    <div id="noFaceHint" class="hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-amber-500/95 text-slate-950 px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">
-                        ক্যামেরার সামনে আপনার মুখ সোজা রাখুন
-                    </div>
-                </div>
-
-                <!-- Bottom Camera Action Bar -->
-                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-                    <div class="flex items-center gap-2">
-                        <button id="toggleCamBtn" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold flex items-center gap-2 border border-slate-700 transition">
-                            <i data-lucide="power" class="w-4 h-4 text-rose-400"></i>
-                            <span id="toggleCamText">ক্যামেরা চালু</span>
-                        </button>
-
-                        <button id="switchCamBtn" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border border-slate-700 transition" title="Switch Front/Back Camera">
-                            <i data-lucide="refresh-cw" class="w-4 h-4 text-cyan-400"></i>
-                            <span class="hidden sm:inline" data-i18n="switchCam">ক্যামেরা ঘোরান</span>
-                        </button>
-
-                        <button id="mirrorBtn" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border border-slate-700 transition" title="Mirror Camera">
-                            <i data-lucide="flip-horizontal" class="w-4 h-4 text-indigo-400"></i>
-                            <span class="hidden sm:inline" data-i18n="mirror">মিরর</span>
-                        </button>
-                    </div>
-
-                    <!-- Snapshot Button -->
-                    <button id="snapshotBtn" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition transform active:scale-95">
-                        <i data-lucide="camera" class="w-4 h-4"></i>
-                        <span data-i18n="snapshot">ছবি তুলুন (Save)</span>
-                    </button>
-                </div>
-            </div>
-        </section>
-
+        <!-- Camera & Snapshot Toolbar -->
+        <div class="w-full flex items-center justify-between mt-3 gap-2">
+            <button onclick="toggleCamera()" id="camToggleBtn" class="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                ক্যামেরা বন্ধ
+            </button>
+            <button onclick="switchCamera()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition" title="ক্যামেরা পরিবর্তন">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+            <button onclick="takeSnapshot()" class="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20">
+                📸 ছবি তুলুন (Save)
+            </button>
+        </div>
     </main>
 
+    <!-- Character Selection Section -->
+    <section class="w-full max-w-md glass-panel rounded-2xl p-4 mb-4 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold text-sm flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                রিয়ালিস্টিক ফেস সিলেক্ট করুন
+            </h2>
+            <div class="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px]">
+                <button onclick="filterCategory('all')" id="cat-all" class="px-2.5 py-1 rounded-md bg-indigo-600 font-semibold transition">সব</button>
+                <button onclick="filterCategory('male')" id="cat-male" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">ছেলে</button>
+                <button onclick="filterCategory('female')" id="cat-female" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">মেয়ে</button>
+            </div>
+        </div>
+
+        <!-- Custom Upload Box -->
+        <label class="w-full border-2 border-dashed border-indigo-500/40 hover:border-indigo-500 bg-indigo-500/5 hover:bg-indigo-500/10 rounded-xl p-3 flex items-center justify-center gap-3 cursor-pointer transition mb-3">
+            <div class="w-9 h-9 rounded-lg bg-indigo-600/20 flex items-center justify-center text-indigo-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <div class="text-left">
+                <p class="text-xs font-bold text-indigo-300">+ নিজের বা অন্য কারো ফেস আপলোড করুন</p>
+                <p class="text-[10px] text-slate-400">যেকোনো মানুষের মুখের ছবি আপলোড করুন</p>
+            </div>
+            <input type="file" id="customImageUpload" accept="image/*" class="hidden" onchange="loadCustomImage(event)">
+        </label>
+
+        <!-- Character Grid -->
+        <div id="characterGrid" class="grid grid-cols-3 gap-2.5 max-h-56 overflow-y-auto pr-1">
+            <!-- Dynamically populated -->
+        </div>
+    </section>
+
+    <!-- App JavaScript Engine -->
     <script>
-        lucide.createIcons();
-
-        // ==========================================
-        // 1. STATE & LOCALIZATION
-        // ==========================================
-        const state = {
-            lang: 'bn',
-            cameraActive: false,
-            facingMode: 'user',
-            mirrored: true,
-            holdingCompare: false,
-            selectedCharId: 'tania',
-            hairMode: 'auto',
-            filter: 'all',
-            adjustments: {
-                skinMatch: 0.70,
-                feather: 0.35,
-                brightness: 1.02,
-                scale: 1.06,
-                opacity: 1.00
-            },
-            characters: [],
-            faceDetected: false
-        };
-
-        const i18n = {
-            bn: {
-                selectChar: 'রিয়ালিস্টিক ফেস সিলেক্ট করুন',
-                filterAll: 'সব',
-                filterMale: 'ছেলে',
-                filterFemale: 'মেয়ে',
-                uploadTitle: '+ নিজের বা অন্য কারো ফেস আপলোড করুন',
-                uploadSub: 'যেকোনো আসল মানুষের ছবি আপলোড করলে অটো ফেস সোয়াপ হবে',
-                hairLabel: 'মেয়েদের হেয়ার ওভারলে:',
-                adjustments: 'রিয়ালিস্টিক স্কিন ও ফেস অ্যাডজাস্টমেন্ট',
-                reset: 'রিসেট',
-                skinMatch: 'স্কিন কালার ম্যাচ (Balanced Tone)',
-                feather: 'বর্ডার স্মুথনেস (Edge Feather)',
-                brightness: 'আলো ও ব্রাইটনেস (Brightness)',
-                maskSize: 'ফুল ফেস কভারেজ (Jaw & Face Size)',
-                opacity: 'মাস্ক স্বচ্ছতা (Opacity)',
-                welcomeTitle: 'রিয়ালিস্টিক ফেস সোয়াপ শুরু করুন',
-                welcomeDesc: 'বাম পাশ থেকে বাস্তব মানুষের ফেস সিলেক্ট করুন অথবা গ্যালারি থেকে যেকোনো ছবি আপলোড করুন। ক্যামেরা চালু করলে আপনার মুখের ত্বকের রঙ, চোখ ও ঠোঁটের নড়াচড়ার সাথে একদম আসল মানুষের মতো ফেসটি মিশে যাবে।',
-                startCamBtn: 'ক্যামেরা চালু করুন (Allow Camera)',
-                compare: 'আসল মুখ দেখুন (Hold)',
-                switchCam: 'ক্যামেরা ঘোরান',
-                mirror: 'মিরর',
-                snapshot: 'ছবি তুলুন (Save)'
-            },
-            en: {
-                selectChar: 'Select Photorealistic Face',
-                filterAll: 'All',
-                filterMale: 'Male',
-                filterFemale: 'Female',
-                uploadTitle: '+ Upload Custom Real Face Photo',
-                uploadSub: 'Upload any portrait photo for automatic real-time face swap',
-                hairLabel: 'Female Hair Wig:',
-                adjustments: 'Realistic Skin & Mesh Controls',
-                reset: 'Reset',
-                skinMatch: 'Balanced Skin Tone Match',
-                feather: 'Border Smoothness (Feather)',
-                brightness: 'Lighting / Brightness',
-                maskSize: 'Full Face & Jaw Coverage',
-                opacity: 'Mask Opacity',
-                welcomeTitle: 'Start Photorealistic Face Swap',
-                welcomeDesc: 'Pick a real male or female face on the left or upload any portrait photo. Our 468-point 3D mesh warps the face to match your live head pitch, yaw, eye blinks, and speech.',
-                startCamBtn: 'Start Camera (Allow Permission)',
-                compare: 'Hold for Original',
-                switchCam: 'Flip Cam',
-                mirror: 'Mirror',
-                snapshot: 'Save Photo'
-            }
-        };
-
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            if (!container) return;
-            const toast = document.createElement('div');
-            const colors = {
-                info: 'bg-slate-900/95 border-indigo-500/60 text-indigo-100',
-                success: 'bg-emerald-950/95 border-emerald-500/60 text-emerald-100',
-                error: 'bg-rose-950/95 border-rose-500/60 text-rose-100'
-            };
-            toast.className = `px-4 py-2.5 rounded-xl border shadow-xl text-xs font-semibold backdrop-blur-md transition-all duration-300 ${colors[type] || colors.info}`;
-            toast.textContent = message;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 3200);
-        }
-
-        // ==========================================
-        // 2. FACE MESH TRIANGULATION & AFFINE WARPING
-        // ==========================================
-        // Outer face contour loop (clockwise)
-        const FACE_OVAL_LOOP = [
-            10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
-            397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
-            172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109
+        const characters = [
+            { id: 'none', name: 'নরমাল (বন্ধ)', type: 'off', gender: 'off', img: null },
+            { id: 'arif', name: 'আরিফ', type: 'preset', gender: 'male', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80' },
+            { id: 'tania', name: 'তানিয়া', type: 'preset', gender: 'female', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80' },
+            { id: 'rahul', name: 'রাহুল', type: 'preset', gender: 'male', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80' },
+            { id: 'nusrat', name: 'নুসরাত', type: 'preset', gender: 'female', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80' },
+            { id: 'kabir', name: 'কবির', type: 'preset', gender: 'male', img: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80' },
+            { id: 'sara', name: 'সারা', type: 'preset', gender: 'female', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80' }
         ];
 
-        // Inner lip loop (clockwise) for live mouth cavity opening
-        const INNER_LIPS_LOOP = [
-            78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308,
-            324, 318, 402, 317, 14, 87, 178, 88, 95
-        ];
+        let activeCharacter = 'none';
+        let currentFilter = 'all';
+        let isCameraActive = false;
+        let useFrontCamera = true;
+        let videoElement = document.getElementById('webcam');
+        let canvasElement = document.getElementById('outputCanvas');
+        let canvasCtx = canvasElement.getContext('2d');
+        let loadedImages = {};
+        let faceMesh = null;
+        let camera = null;
+        let isHoldingOriginal = false;
 
-        // Key facial indices from MediaPipe 468 FaceMesh covering forehead, cheeks, jawline, nose, eyes, and lips
-        const MESH_INDICES = [
-            ...FACE_OVAL_LOOP,
-            // Inner brow & forehead grid
-            151, 9, 8, 168, 6, 197, 195, 5, 4, 1, 19, 94, 2,
-            // Left Eye & Brow
-            70, 63, 105, 66, 107, 33, 160, 159, 158, 133, 153, 145, 144, 163,
-            // Right Eye & Brow
-            336, 296, 334, 293, 300, 362, 385, 386, 387, 263, 373, 374, 380, 390,
-            // Cheeks & Nose Bridge
-            116, 123, 147, 213, 192, 214, 212, 216, 206, 203, 36, 101, 118, 117,
-            345, 352, 376, 433, 416, 434, 432, 436, 426, 423, 266, 330, 347, 346,
-            // Outer Mouth & Lips
-            61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291,
-            375, 321, 405, 314, 17, 84, 181, 91, 146,
-            // Inner Mouth & Lips
-            ...INNER_LIPS_LOOP
-        ];
-
-        // Compute outward-expanded ring around FACE_OVAL_LOOP with 3D pitch/yaw perspective compensation
-        function buildExpandedMeshPoints(landmarks, width, height, scale = 1.0, centerX = 0, centerY = 0, pitch = 0, yaw = 0) {
-            const basePts = MESH_INDICES.map(idx => {
-                const rawX = landmarks[idx].x * width;
-                const rawY = landmarks[idx].y * height;
-                return {
-                    x: scale === 1.0 ? rawX : centerX + (rawX - centerX) * scale,
-                    y: scale === 1.0 ? rawY : centerY + (rawY - centerY) * scale
-                };
+        function renderCharacterGrid(filter = 'all') {
+            currentFilter = filter;
+            ['all', 'male', 'female'].forEach(f => {
+                const btn = document.getElementById(`cat-${f}`);
+                if (f === filter) {
+                    btn.className = "px-2.5 py-1 rounded-md bg-indigo-600 font-semibold transition";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition";
+                }
             });
 
-            // Geometric face center for outward buffer ring expansion
-            let cx = 0, cy = 0;
-            for (let i = 0; i < FACE_OVAL_LOOP.length; i++) {
-                cx += basePts[i].x;
-                cy += basePts[i].y;
-            }
-            cx /= FACE_OVAL_LOOP.length;
-            cy /= FACE_OVAL_LOOP.length;
+            const grid = document.getElementById('characterGrid');
+            grid.innerHTML = '';
 
-            // Add 36 outward-expanded perimeter points so jawline, chin & beard are 100% covered from all 3D angles
-            const outerRingPts = [];
-            for (let i = 0; i < FACE_OVAL_LOOP.length; i++) {
-                const p = basePts[i];
-                const dx = p.x - cx;
-                const dy = p.y - cy;
-                const isLowerJaw = dy > 0;
-                // Dynamic 3D occlusion compensation when turning left/right or nodding up/down
-                const sideFactor = Math.sign(dx) === Math.sign(yaw) ? (1.08 + Math.abs(yaw) * 0.04) : Math.max(1.03, 1.08 - Math.abs(yaw) * 0.05);
-                const verticalFactor = isLowerJaw
-                    ? (1.13 + Math.max(0, -pitch) * 0.06)
-                    : (1.08 + Math.max(0, pitch) * 0.05);
-                outerRingPts.push({
-                    x: cx + dx * sideFactor,
-                    y: cy + dy * verticalFactor
-                });
-            }
+            const filtered = characters.filter(c => {
+                if (filter === 'male') return c.gender === 'male';
+                if (filter === 'female') return c.gender === 'female';
+                return true;
+            });
 
-            return [...basePts, ...outerRingPts];
+            filtered.forEach(c => {
+                const isSelected = activeCharacter === c.id;
+                const card = document.createElement('div');
+                card.onclick = () => selectCharacter(c.id);
+                card.className = `cursor-pointer rounded-xl p-2.5 flex flex-col items-center border transition relative overflow-hidden ${isSelected ? 'bg-indigo-600/20 border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'}`;
+
+                if (c.id === 'none') {
+                    card.innerHTML = `
+                        <div class="w-14 h-14 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-1.5 text-slate-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                        </div>
+                        <span class="text-xs font-bold text-slate-300">নরমাল</span>
+                        <span class="text-[10px] text-slate-500">OFF</span>
+                    `;
+                } else {
+                    card.innerHTML = `
+                        <img src="${c.img}" class="w-14 h-14 rounded-full object-cover border-2 ${isSelected ? 'border-indigo-400' : 'border-slate-700'} mb-1.5 shadow">
+                        <span class="text-xs font-bold text-slate-200 truncate w-full text-center">${c.name}</span>
+                        <span class="text-[10px] ${c.gender === 'female' ? 'text-pink-400' : 'text-indigo-400'}">${c.gender === 'female' ? 'মেয়ে' : 'ছেলে'}</span>
+                    `;
+                }
+                grid.appendChild(card);
+            });
         }
 
-        let DELAUNAY_TRIANGLES = null;
+        function filterCategory(cat) {
+            renderCharacterGrid(cat);
+        }
 
-        // Bowyer-Watson Delaunay Triangulation in 2D canonical coordinates
-        function computeDelaunayTriangles(points) {
-            const n = points.length;
-            if (n < 3) return [];
+        function selectCharacter(id) {
+            activeCharacter = id;
+            renderCharacterGrid(currentFilter);
+        }
 
-            // Super-triangle encompassing normalized [0..1] domain with large margin
-            const st0 = { x: -10, y: -10, idx: -1 };
-            const st1 = { x: 10, y: -10, idx: -2 };
-            const st2 = { x: 0, y: 10, idx: -3 };
-            const allPts = [...points, st0, st1, st2];
-
-            let triangles = [[n, n + 1, n + 2]];
-
-            function inCircumcircle(p, a, b, c) {
-                const ax = a.x - p.x, ay = a.y - p.y;
-                const bx = b.x - p.x, by = b.y - p.y;
-                const cx = c.x - p.x, cy = c.y - p.y;
-                const det = (ax * ax + ay * ay) * (bx * cy - cx * by)
-                          - (bx * bx + by * by) * (ax * cy - cx * ay)
-                          + (cx * cx + cy * cy) * (ax * by - bx * ay);
-                const orient = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-                return orient > 0 ? det > 0 : det < 0;
+        function loadCustomImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const customId = 'custom_' + Date.now();
+                        characters.push({ id: customId, name: 'কাস্টম ফেস', type: 'custom', gender: 'female', img: e.target.result });
+                        loadedImages[customId] = img;
+                        selectCharacter(customId);
+                        renderCharacterGrid(currentFilter);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
             }
+        }
 
-            for (let i = 0; i < n; i++) {
-                const p = allPts[i];
-                const badTriangles = [];
-                for (let t = 0; t < triangles.length; t++) {
-                    const [i0, i1, i2] = triangles[t];
-                    if (inCircumcircle(p, allPts[i0], allPts[i1], allPts[i2])) {
-                        badTriangles.push(t);
-                    }
+        function preloadImages() {
+            characters.forEach(c => {
+                if (c.img) {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.src = c.img;
+                    loadedImages[c.id] = img;
                 }
+            });
+        }
 
-                const polygon = [];
-                for (const tIdx of badTriangles) {
-                    const tri = triangles[tIdx];
-                    const edges = [[tri[0], tri[1]], [tri[1], tri[2]], [tri[2], tri[0]]];
-                    for (const [e0, e1] of edges) {
-                        let shared = false;
-                        for (const otherIdx of badTriangles) {
-                            if (otherIdx === tIdx) continue;
-                            const oTri = triangles[otherIdx];
-                            if ((oTri.includes(e0) && oTri.includes(e1))) {
-                                shared = true;
-                                break;
-                            }
+        async function initFaceMesh() {
+            faceMesh = new FaceMesh({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+            });
+
+            faceMesh.setOptions({
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
+            });
+
+            faceMesh.onResults(onFaceResults);
+        }
+
+        async function toggleCamera() {
+            if (isCameraActive) {
+                stopCamera();
+            } else {
+                await startCamera();
+            }
+        }
+
+        async function startCamera() {
+            document.getElementById('statusText').innerText = 'ক্যামেরা চালু হচ্ছে...';
+            try {
+                if (!faceMesh) {
+                    await initFaceMesh();
+                }
+                
+                const constraints = {
+                    video: {
+                        facingMode: useFrontCamera ? 'user' : 'environment',
+                        width: { ideal: 720 },
+                        height: { ideal: 960 }
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = stream;
+                await videoElement.play();
+
+                canvasElement.width = videoElement.videoWidth || 720;
+                canvasElement.height = videoElement.videoHeight || 960;
+
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (videoElement.readyState >= 2) {
+                            await faceMesh.send({ image: videoElement });
                         }
-                        if (!shared) polygon.push([e0, e1]);
-                    }
-                }
+                    },
+                    width: 720,
+                    height: 960
+                });
 
-                triangles = triangles.filter((_, idx) => !badTriangles.includes(idx));
-                for (const [e0, e1] of polygon) {
-                    triangles.push([e0, e1, i]);
-                }
+                camera.start();
+                isCameraActive = true;
+                document.getElementById('placeholderOverlay').classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('camToggleBtn').innerHTML = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> ক্যামেরা চালু`;
+                document.getElementById('statusText').innerText = 'লাইভ ফেস মাস্ক চলছে';
+                document.getElementById('originalBtn').classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                alert('ক্যামেরা পার미শন পাওয়া যায়নি।');
+                document.getElementById('statusText').innerText = 'ক্যামেরা ত্রুটি';
             }
-
-            return triangles.filter(tri => tri[0] < n && tri[1] < n && tri[2] < n);
         }
 
-        // Draw single textured triangle from source image onto target canvas via Affine Transform
-        function drawTexturedTriangle(ctx, img, sx0, sy0, sx1, sy1, sx2, sy2, dx0, dy0, dx1, dy1, dx2, dy2) {
-            ctx.save();
-            ctx.beginPath();
-            // Slight 0.75px outward expansion prevents hairline seams between adjacent triangles
-            const cx = (dx0 + dx1 + dx2) / 3;
-            const cy = (dy0 + dy1 + dy2) / 3;
-            const expand = 0.75;
-            const ex0 = dx0 + (dx0 - cx) * 0.035 + Math.sign(dx0 - cx) * expand;
-            const ey0 = dy0 + (dy0 - cy) * 0.035 + Math.sign(dy0 - cy) * expand;
-            const ex1 = dx1 + (dx1 - cx) * 0.035 + Math.sign(dx1 - cx) * expand;
-            const ey1 = dy1 + (dy1 - cy) * 0.035 + Math.sign(dy1 - cy) * expand;
-            const ex2 = dx2 + (dx2 - cx) * 0.035 + Math.sign(dx2 - cx) * expand;
-            const ey2 = dy2 + (dy2 - cy) * 0.035 + Math.sign(dy2 - cy) * expand;
+        function stopCamera() {
+            if (videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+            if (camera) {
+                camera.stop();
+            }
+            isCameraActive = false;
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            document.getElementById('placeholderOverlay').classList.remove('opacity-0', 'pointer-events-none');
+            document.getElementById('camToggleBtn').innerHTML = `<svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> ক্যামেরা বন্ধ`;
+            document.getElementById('statusText').innerText = 'ক্যামেরা বন্ধ আছে';
+            document.getElementById('originalBtn').classList.add('hidden');
+        }
 
-            ctx.moveTo(ex0, ey0);
-            ctx.lineTo(ex1, ey1);
-            ctx.lineTo(ex2, ey2);
-            ctx.closePath();
-            ctx.clip();
+        async function switchCamera() {
+            useFrontCamera = !useFrontCamera;
+            if (isCameraActive) {
+                stopCamera();
+                await startCamera();
+            }
+        }
 
-            const denom = (sx0 * (sy1 - sy2) + sx1 * (sy2 - sy0) + sx2 * (sy0 - sy1));
-            if (Math.abs(denom) < 0.0001) {
-                ctx.restore();
+        // True Face Mask Mapping (Ellipse Clipping & Oval Face Blending)
+        function onFaceResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0 || activeCharacter === 'none' || isHoldingOriginal) {
+                canvasCtx.restore();
                 return;
             }
 
-            const m11 = (dx0 * (sy1 - sy2) + dx1 * (sy2 - sy0) + dx2 * (sy0 - sy1)) / denom;
-            const m12 = (dy0 * (sy1 - sy2) + dy1 * (sy2 - sy0) + dy2 * (sy0 - sy1)) / denom;
-            const m21 = (dx0 * (sx2 - sx1) + dx1 * (sx0 - sx2) + dx2 * (sx1 - sx0)) / denom;
-            const m22 = (dy0 * (sx2 - sx1) + dy1 * (sx0 - sx2) + dy2 * (sx1 - sx0)) / denom;
-            const dx = (dx0 * (sx1 * sy2 - sx2 * sy1) + dx1 * (sx2 * sy0 - sx0 * sy2) + dx2 * (sx0 * sy1 - sx1 * sy0)) / denom;
-            const dy = (dy0 * (sx1 * sy2 - sx2 * sy1) + dy1 * (sx2 * sy0 - sx0 * sy2) + dy2 * (sx0 * sy1 - sx1 * sy0)) / denom;
+            const landmarks = results.multiFaceLandmarks[0];
+            const maskImg = loadedImages[activeCharacter];
 
-            ctx.transform(m11, m12, m21, m22, dx, dy);
-            ctx.drawImage(img, 0, 0);
-            ctx.restore();
-        }
+            if (maskImg && maskImg.complete) {
+                canvasCtx.save();
 
-        // ==========================================
-        // 3. PHOTOREALISTIC HUMAN PORTRAIT PRESETS
-        // ==========================================
-        const PRESET_DEFINITIONS = [
-            {
-                id: 'none',
-                nameBn: 'নরমাল (বন্ধ)',
-                nameEn: 'Original',
-                gender: 'all',
-                badge: 'OFF',
-                isNone: true
-            },
-            {
-                id: 'arif',
-                nameBn: 'আরিফ',
-                nameEn: 'Arif',
-                gender: 'male',
-                badge: 'ছেলে',
-                url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=640&q=85',
-                skinBase: [204, 156, 124]
-            },
-            {
-                id: 'tania',
-                nameBn: 'তানিয়া',
-                nameEn: 'Tania',
-                gender: 'female',
-                badge: 'মেয়ে',
-                url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=640&q=85',
-                skinBase: [224, 182, 156]
-            },
-            {
-                id: 'rahul',
-                nameBn: 'রাহুল',
-                nameEn: 'Rahul',
-                gender: 'male',
-                badge: 'ছেলে',
-                url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=640&q=85',
-                skinBase: [214, 168, 138]
-            },
-            {
-                id: 'nusrat',
-                nameBn: 'নুসরাত',
-                nameEn: 'Nusrat',
-                gender: 'female',
-                badge: 'মেয়ে',
-                url: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=640&q=85',
-                skinBase: [222, 178, 152]
-            },
-            {
-                id: 'kabir',
-                nameBn: 'কবির',
-                nameEn: 'Kabir',
-                gender: 'male',
-                badge: 'ছেলে',
-                url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=640&q=85',
-                skinBase: [196, 146, 114]
-            },
-            {
-                id: 'sara',
-                nameBn: 'সারা',
-                nameEn: 'Sara',
-                gender: 'female',
-                badge: 'মেয়ে',
-                url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=640&q=85',
-                skinBase: [228, 186, 160]
-            }
-        ];
+                const leftCheek = landmarks[234];
+                const rightCheek = landmarks[454];
+                const chin = landmarks[152];
+                const forehead = landmarks[10];
 
-        // High-detail photorealistic studio portrait generator (instantaneous thumbnail & guaranteed offline fallback)
-        function createFallbackStudioPortrait(preset) {
-            const c = document.createElement('canvas');
-            c.width = 512;
-            c.height = 512;
-            const ctx = c.getContext('2d');
-            const [r, g, b] = preset.skinBase || [215, 170, 140];
-            const isFemale = preset.gender === 'female';
+                const cx = (leftCheek.x + rightCheek.x) / 2 * canvasElement.width;
+                const cy = (forehead.y + chin.y) / 2 * canvasElement.height;
 
-            // Soft studio backdrop
-            const bg = ctx.createRadialGradient(256, 220, 40, 256, 256, 340);
-            bg.addColorStop(0, '#334155');
-            bg.addColorStop(1, '#0f172a');
-            ctx.fillStyle = bg;
-            ctx.fillRect(0, 0, 512, 512);
+                const faceWidth = Math.hypot((rightCheek.x - leftCheek.x) * canvasElement.width, (rightCheek.y - leftCheek.y) * canvasElement.height) * 1.35;
+                const faceHeight = Math.hypot((chin.x - forehead.x) * canvasElement.width, (chin.y - forehead.y) * canvasElement.height) * 1.45;
 
-            // Neck & shoulders
-            ctx.fillStyle = `rgb(${Math.max(0, r - 24)}, ${Math.max(0, g - 24)}, ${Math.max(0, b - 24)})`;
-            ctx.beginPath();
-            ctx.ellipse(256, 440, 115, 95, 0, Math.PI, 0);
-            ctx.fill();
-            ctx.fillRect(212, 330, 88, 90);
+                const dx = rightCheek.x - leftCheek.x;
+                const dy = rightCheek.y - leftCheek.y;
+                const angle = Math.atan2(dy, dx);
 
-            // Face base oval with 3D studio skin shading
-            const skinGrad = ctx.createRadialGradient(242, 225, 25, 256, 250, 145);
-            skinGrad.addColorStop(0, `rgb(${Math.min(255, r + 18)}, ${Math.min(255, g + 16)}, ${Math.min(255, b + 14)})`);
-            skinGrad.addColorStop(0.65, `rgb(${r}, ${g}, ${b})`);
-            skinGrad.addColorStop(1, `rgb(${Math.max(0, r - 35)}, ${Math.max(0, g - 35)}, ${Math.max(0, b - 32)})`);
+                canvasCtx.translate(cx, cy);
+                canvasCtx.rotate(angle);
 
-            ctx.fillStyle = skinGrad;
-            ctx.beginPath();
-            ctx.ellipse(256, 245, isFemale ? 104 : 112, isFemale ? 136 : 142, 0, 0, Math.PI * 2);
-            ctx.fill();
+                // Create precise face oval clipping path so NO square background shows
+                canvasCtx.beginPath();
+                canvasCtx.ellipse(0, 5, faceWidth / 2, faceHeight / 2, 0, 0, 2 * Math.PI);
+                canvasCtx.clip();
 
-            // Natural hair crown
-            ctx.fillStyle = isFemale ? '#18131a' : '#141216';
-            ctx.beginPath();
-            ctx.ellipse(256, 152, isFemale ? 116 : 115, 68, 0, Math.PI, 0);
-            ctx.fill();
+                // Draw and warp face image to match user's head position & size
+                canvasCtx.drawImage(maskImg, -faceWidth / 2, -faceHeight / 2, faceWidth, faceHeight);
 
-            // Eyebrows
-            ctx.strokeStyle = '#1f1918';
-            ctx.lineWidth = isFemale ? 5 : 7;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(192, 202); ctx.quadraticCurveTo(214, 193, 234, 200);
-            ctx.moveTo(278, 200); ctx.quadraticCurveTo(298, 193, 320, 202);
-            ctx.stroke();
-
-            // Realistic almond eyes + iris + catchlight
-            [214, 298].forEach(ex => {
-                ctx.fillStyle = '#f8fafc';
-                ctx.beginPath();
-                ctx.ellipse(ex, 222, 18, 9.5, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = '#2b1d16';
-                ctx.beginPath();
-                ctx.arc(ex, 222, 7.5, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = '#090707';
-                ctx.beginPath();
-                ctx.arc(ex, 222, 3.6, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath();
-                ctx.arc(ex - 2.2, 219.5, 1.8, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            // Soft nose bridge & tip shading
-            ctx.strokeStyle = `rgba(${Math.max(0, r - 48)}, ${Math.max(0, g - 48)}, ${Math.max(0, b - 45)}, 0.45)`;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(256, 218);
-            ctx.lineTo(252, 268);
-            ctx.quadraticCurveTo(256, 275, 264, 269);
-            ctx.stroke();
-
-            // Natural lips
-            ctx.fillStyle = isFemale ? '#b95c64' : '#a8645e';
-            ctx.beginPath();
-            ctx.ellipse(256, 310, isFemale ? 27 : 29, isFemale ? 9.5 : 8.5, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = 'rgba(70, 25, 28, 0.55)';
-            ctx.lineWidth = 1.6;
-            ctx.beginPath();
-            ctx.moveTo(229, 310);
-            ctx.quadraticCurveTo(256, 312, 283, 310);
-            ctx.stroke();
-
-            return c;
-        }
-
-        // Static FaceMesh instance for extracting landmarks from preset & uploaded images
-        let staticFaceMesh = null;
-        let landmarkExtractQueue = Promise.resolve();
-
-        function ensureStaticFaceMesh() {
-            if (staticFaceMesh) return staticFaceMesh;
-            staticFaceMesh = new FaceMesh({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-            });
-            staticFaceMesh.setOptions({
-                maxNumFaces: 1,
-                refineLandmarks: true,
-                minDetectionConfidence: 0.45,
-                minTrackingConfidence: 0.45
-            });
-            return staticFaceMesh;
-        }
-
-        function extractLandmarksFromSource(sourceEl) {
-            landmarkExtractQueue = landmarkExtractQueue.then(() => new Promise((resolve) => {
-                try {
-                    const fm = ensureStaticFaceMesh();
-                    let settled = false;
-                    const timer = setTimeout(() => {
-                        if (!settled) { settled = true; resolve(null); }
-                    }, 4500);
-
-                    fm.onResults((res) => {
-                        if (settled) return;
-                        settled = true;
-                        clearTimeout(timer);
-                        if (res.multiFaceLandmarks && res.multiFaceLandmarks.length > 0) {
-                            resolve(res.multiFaceLandmarks[0]);
-                        } else {
-                            resolve(null);
-                        }
-                    });
-                    fm.send({ image: sourceEl }).catch(() => {
-                        if (!settled) { settled = true; clearTimeout(timer); resolve(null); }
-                    });
-                } catch (e) {
-                    resolve(null);
-                }
-            }));
-            return landmarkExtractQueue;
-        }
-
-        function sampleAverageSkinRGB(imgEl, landmarks) {
-            try {
-                const c = document.createElement('canvas');
-                c.width = 64; c.height = 64;
-                const ctx = c.getContext('2d');
-                ctx.drawImage(imgEl, 0, 0, 64, 64);
-                const pts = [118, 347, 151, 50, 280];
-                let r = 0, g = 0, b = 0;
-                for (const idx of pts) {
-                    const px = Math.min(63, Math.max(0, Math.floor(landmarks[idx].x * 64)));
-                    const py = Math.min(63, Math.max(0, Math.floor(landmarks[idx].y * 64)));
-                    const d = ctx.getImageData(px, py, 1, 1).data;
-                    r += d[0]; g += d[1]; b += d[2];
-                }
-                return [Math.round(r / pts.length), Math.round(g / pts.length), Math.round(b / pts.length)];
-            } catch (e) {
-                return [214, 168, 138];
-            }
-        }
-
-        function initializeCharacters() {
-            state.characters = PRESET_DEFINITIONS.map(def => {
-                if (def.isNone) {
-                    return { ...def, ready: true };
-                }
-                const fallbackCanvas = createFallbackStudioPortrait(def);
-                return {
-                    ...def,
-                    sourceEl: fallbackCanvas,
-                    thumbUrl: def.url || fallbackCanvas.toDataURL('image/jpeg', 0.85),
-                    fallbackThumbUrl: fallbackCanvas.toDataURL('image/jpeg', 0.85),
-                    avgSkin: def.skinBase || [214, 168, 138],
-                    landmarks: null,
-                    ready: false
-                };
-            });
-
-            // Immediately render all 7 cards (Normal + 3 Male + 3 Female) with zero delay
-            renderCharacterGrid();
-            selectCharacter('tania');
-
-            // Load real portrait URLs asynchronously with CORS + landmark detection
-            for (const charObj of state.characters) {
-                if (charObj.isNone) continue;
-                loadPortraitImageAndLandmarks(charObj);
-            }
-        }
-
-        function renderCharacterGrid() {
-            const grid = document.getElementById('characterGrid');
-            if (!grid) return;
-
-            const filtered = state.characters.filter(c => {
-                if (c.isNone) return true;
-                if (state.filter === 'all') return true;
-                return c.gender === state.filter;
-            });
-
-            grid.innerHTML = filtered.map(c => {
-                const isSelected = c.id === state.selectedCharId;
-                const displayName = state.lang === 'bn' ? c.nameBn : c.nameEn;
-                const badgeBg = c.isNone
-                    ? 'bg-slate-800 text-slate-400'
-                    : c.gender === 'female'
-                        ? 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30'
-                        : c.gender === 'male'
-                            ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-
-                if (c.isNone) {
-                    return `
-                        <button onclick="selectCharacter('${c.id}')" class="character-card ${isSelected ? 'active' : ''} flex flex-col items-center justify-center p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 transition text-center gap-1.5">
-                            <div class="w-12 h-12 rounded-full bg-slate-800/90 border border-slate-700 flex items-center justify-center text-slate-400">
-                                <i data-lucide="ban" class="w-5 h-5"></i>
-                            </div>
-                            <span class="text-xs font-bold text-slate-200 truncate w-full">${displayName}</span>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full ${badgeBg}">${c.badge}</span>
-                        </button>
-                    `;
-                }
-
-                return `
-                    <button onclick="selectCharacter('${c.id}')" class="character-card ${isSelected ? 'active' : ''} flex flex-col items-center justify-center p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 transition text-center gap-1.5">
-                        <div class="w-12 h-12 rounded-full overflow-hidden border-2 ${isSelected ? 'border-indigo-400' : 'border-slate-700'} bg-slate-800 shrink-0">
-                            <img src="${c.thumbUrl}" onerror="this.onerror=null;this.src='${c.fallbackThumbUrl || ''}'" alt="${displayName}" class="w-full h-full object-cover">
-                        </div>
-                        <span class="text-xs font-bold text-white truncate w-full">${displayName}</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded-full ${badgeBg}">${c.badge}</span>
-                    </button>
-                `;
-            }).join('');
-
-            lucide.createIcons();
-        }
-
-        function filterCharacters(filterType) {
-            state.filter = filterType;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                const active = btn.getAttribute('data-filter') === filterType;
-                btn.className = active
-                    ? 'filter-btn active px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium transition'
-                    : 'filter-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition';
-            });
-            renderCharacterGrid();
-        }
-
-        function selectCharacter(charId) {
-            state.selectedCharId = charId;
-            renderCharacterGrid();
-            const charObj = state.characters.find(c => c.id === charId);
-            const pill = document.getElementById('activeCharPill');
-            const label = document.getElementById('activeCharLabel');
-            if (charObj && !charObj.isNone) {
-                label.textContent = state.lang === 'bn' ? charObj.nameBn : charObj.nameEn;
-                if (state.cameraActive) pill.classList.remove('hidden');
-            } else {
-                pill.classList.add('hidden');
-            }
-        }
-// ... existing code ... -->
-                    sampleLiveUserSkin(results.image, liveLms);
-                    renderPhotorealisticFaceSwap(canvasCtx, liveLms, W, H);
-
-                    // Front bangs, crown & side hair locks framing forehead/temples over short male hair
-                    if (shouldRenderHair) {
-                        renderFemaleHairFrontLayer(canvasCtx, liveLms, W, H);
-                    }
-                }
-            } else {
-                state.faceDetected = false;
-                smoothedLandmarks = null;
-                if (state.cameraActive) {
-                    document.getElementById('noFaceHint').classList.remove('hidden');
-                }
+                canvasCtx.restore();
             }
 
             canvasCtx.restore();
         }
 
-        // Compute true 3D head pose metrics (center, width, height, roll, yaw, pitch) from MediaPipe landmarks
-        function getHeadPose3D(liveLms, W, H) {
-            const topHead = { x: liveLms[10].x * W, y: liveLms[10].y * H };
-            const eyeBridge = { x: liveLms[168].x * W, y: liveLms[168].y * H };
-            const chin = { x: liveLms[152].x * W, y: liveLms[152].y * H };
-            const leftCheek = { x: liveLms[234].x * W, y: liveLms[234].y * H };
-            const rightCheek = { x: liveLms[454].x * W, y: liveLms[454].y * H };
-            const leftEyeOuter = { x: liveLms[33].x * W, y: liveLms[33].y * H };
-            const rightEyeOuter = { x: liveLms[263].x * W, y: liveLms[263].y * H };
-            const noseTip = { x: liveLms[1].x * W, y: liveLms[1].y * H };
+        const origBtn = document.getElementById('originalBtn');
+        origBtn.addEventListener('mousedown', () => isHoldingOriginal = true);
+        origBtn.addEventListener('mouseup', () => isHoldingOriginal = false);
+        origBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isHoldingOriginal = true; });
+        origBtn.addEventListener('touchend', (e) => { e.preventDefault(); isHoldingOriginal = false; });
 
-            const cx = (leftCheek.x + rightCheek.x) * 0.5;
-            const cy = (topHead.y + chin.y) * 0.5;
-            const faceW = Math.hypot(rightCheek.x - leftCheek.x, rightCheek.y - leftCheek.y);
-            const faceH = Math.hypot(chin.x - topHead.x, chin.y - topHead.y);
-            const roll = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
-            const yaw = (noseTip.x - cx) / Math.max(1, faceW * 0.5); // -1 (left) to +1 (right)
-
-            // Pitch (Up/Down nod): ratio of upper face (eyeBridge -> noseTip) vs total height (eyeBridge -> chin)
-            const upperDist = Math.hypot(noseTip.x - eyeBridge.x, noseTip.y - eyeBridge.y);
-            const totalLower = Math.max(1, Math.hypot(chin.x - eyeBridge.x, chin.y - eyeBridge.y));
-            const pitch = Math.max(-1, Math.min(1, ((upperDist / totalLower) - 0.36) * 4.2)); // negative = looking up, positive = looking down
-
-            return { cx, cy, faceW, faceH, roll, yaw, pitch, topHead, chin, leftCheek, rightCheek };
-        }
-// ... existing code ... -->
-        // Back layer of female long hair flowing down behind the neck & shoulders (responds to 3D pitch, yaw & roll)
-        function renderFemaleHairBackLayer(ctx, liveLms, W, H) {
-            const pose = getHeadPose3D(liveLms, W, H);
-            const pal = getHairPalette();
-            const scale = state.adjustments.scale;
-
-            ctx.save();
-            ctx.translate(pose.cx, pose.cy);
-            ctx.rotate(pose.roll);
-
-            const hw = pose.faceW * 0.88 * scale;
-            const pitchShiftY = pose.pitch * pose.faceH * 0.16;
-            const topY = -pose.faceH * 0.68 * scale + pitchShiftY;
-            const bottomY = pose.faceH * 1.18 * scale + pitchShiftY * 0.45;
-            const yawShift = pose.yaw * pose.faceW * 0.16;
-// ... existing code ... -->
-        // Front crown, bangs/fringe & side framing hair locks covering short male hair (follows 3D pitch, yaw & roll)
-        function renderFemaleHairFrontLayer(ctx, liveLms, W, H) {
-            const pose = getHeadPose3D(liveLms, W, H);
-            const pal = getHairPalette();
-            const scale = state.adjustments.scale;
-            const style = state.hairMode === 'auto' ? 'silky_black' : state.hairMode;
-
-            ctx.save();
-            ctx.translate(pose.cx, pose.cy);
-            ctx.rotate(pose.roll);
-
-            const hw = pose.faceW * 0.82 * scale;
-            const pitchShiftY = pose.pitch * pose.faceH * 0.18;
-            const crownTop = -pose.faceH * 0.82 * scale + pitchShiftY;
-            const foreheadY = -pose.faceH * 0.44 * scale + pitchShiftY;
-            const sideBottomY = pose.faceH * 1.05 * scale + pitchShiftY * 0.4;
-            const yawShift = pose.yaw * pose.faceW * 0.14;
-// ... existing code ... -->
-        function renderPhotorealisticFaceSwap(ctx, liveLms, W, H) {
-            const charObj = state.characters.find(c => c.id === state.selectedCharId);
-            if (!charObj || !charObj.landmarks || !charObj.sourceEl || !DELAUNAY_TRIANGLES) return;
-
-            const srcImg = charObj.sourceEl;
-            const srcW = srcImg.videoWidth || srcImg.naturalWidth || srcImg.width;
-            const srcH = srcImg.videoHeight || srcImg.naturalHeight || srcImg.height;
-            const srcLms = charObj.landmarks;
-            const pose = getHeadPose3D(liveLms, W, H);
-
-            // Calculate face center for full-coverage scaling
-            const centerX = liveLms[1].x * W;
-            const centerY = liveLms[1].y * H;
-            const scale = state.adjustments.scale;
-
-            // Build expanded source and destination triangle vertices with 3D pitch & yaw compensation
-            const srcPts = buildExpandedMeshPoints(srcLms, srcW, srcH, 1.0, srcW * 0.5, srcH * 0.5, 0, 0);
-            const dstPts = buildExpandedMeshPoints(liveLms, W, H, scale, centerX, centerY, pose.pitch, pose.yaw);
-
-            // Clear offscreen mask buffer
-            maskCtx.clearRect(0, 0, W, H);
-// ... existing code ... -->
-            // Step D: Composite final photorealistic face onto live webcam feed
-            ctx.save();
-            ctx.globalAlpha = state.adjustments.opacity;
-            ctx.filter = `brightness(${Math.round(state.adjustments.brightness * 100)}%) contrast(103%)`;
-            ctx.drawImage(maskBuffer, 0, 0);
-            ctx.restore();
-        }
-
-        // ==========================================
-        // 7. CAMERA PERMISSIONS, CONTROLS & SNAPSHOT
-        // ==========================================
-        let cameraStream = null;
-
-        async function startCamera() {
-            const startBtn = document.getElementById('startCameraBtn');
-            const loadingText = document.getElementById('loadingAiText');
-            startBtn.disabled = true;
-            loadingText.classList.remove('hidden');
-
-            try {
-                if (!liveFaceMesh) {
-                    liveFaceMesh = new FaceMesh({
-                        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-                    });
-                    liveFaceMesh.setOptions({
-                        maxNumFaces: 1,
-                        refineLandmarks: true,
-                        minDetectionConfidence: 0.6,
-                        minTrackingConfidence: 0.6
-                    });
-                    liveFaceMesh.onResults(onLiveFaceResults);
-                }
-
-                if (cameraStream) {
-                    cameraStream.getTracks().forEach(t => t.stop());
-                }
-
-                cameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: state.facingMode,
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    },
-                    audio: false
-                });
-
-                videoElement.srcObject = cameraStream;
-                await videoElement.play();
-
-                state.cameraActive = true;
-                document.getElementById('startOverlay').classList.add('hidden');
-                document.getElementById('compareBtn').classList.remove('hidden');
-                if (state.selectedCharId !== 'none') {
-                    document.getElementById('activeCharPill').classList.remove('hidden');
-                }
-
-                document.getElementById('statusDot').className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
-                document.getElementById('statusText').textContent = 'লাইভ রিয়ালিস্টিক মাস্ক চলছে';
-                document.getElementById('toggleCamText').textContent = 'ক্যামেরা বন্ধ';
-
-                let processingFrame = false;
-                const processVideoFrame = async () => {
-                    if (!state.cameraActive) return;
-                    if (!processingFrame && videoElement.readyState >= 2) {
-                        processingFrame = true;
-                        try {
-                            await liveFaceMesh.send({ image: videoElement });
-                        } catch (e) {}
-                        processingFrame = false;
-                    }
-                    if ('requestVideoFrameCallback' in videoElement) {
-                        videoElement.requestVideoFrameCallback(processVideoFrame);
-                    } else {
-                        animFrameId = requestAnimationFrame(processVideoFrame);
-                    }
-                };
-
-                if ('requestVideoFrameCallback' in videoElement) {
-                    videoElement.requestVideoFrameCallback(processVideoFrame);
-                } else {
-                    animFrameId = requestAnimationFrame(processVideoFrame);
-                }
-            } catch (err) {
-                showToast('ক্যামেরা পারমিশন পাওয়া যায়নি! ব্রাউজার সেটিংস থেকে ক্যামেরা Allow করুন।', 'error');
-            } finally {
-                startBtn.disabled = false;
-                loadingText.classList.add('hidden');
-            }
-        }
-
-        function stopCamera() {
-            state.cameraActive = false;
-            if (animFrameId) cancelAnimationFrame(animFrameId);
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(t => t.stop());
-                cameraStream = null;
-            }
-            document.getElementById('startOverlay').classList.remove('hidden');
-            document.getElementById('compareBtn').classList.add('hidden');
-            document.getElementById('activeCharPill').classList.add('hidden');
-            document.getElementById('noFaceHint').classList.add('hidden');
-            document.getElementById('statusDot').className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
-            document.getElementById('statusText').textContent = 'ক্যামেরা বন্ধ আছে';
-            document.getElementById('toggleCamText').textContent = 'ক্যামেরা চালু';
-        }
-
-        document.getElementById('startCameraBtn').addEventListener('click', startCamera);
-        document.getElementById('toggleCamBtn').addEventListener('click', () => {
-            if (state.cameraActive) stopCamera();
-            else startCamera();
-        });
-
-        document.getElementById('switchCamBtn').addEventListener('click', () => {
-            state.facingMode = state.facingMode === 'user' ? 'environment' : 'user';
-            if (state.cameraActive) startCamera();
-        });
-
-        document.getElementById('mirrorBtn').addEventListener('click', () => {
-            state.mirrored = !state.mirrored;
-            showToast(state.mirrored ? 'মিরর মোড চালু' : 'মিরর মোড বন্ধ', 'info');
-        });
-
-        // Hold to compare original face
-        const compareBtn = document.getElementById('compareBtn');
-        ['mousedown', 'touchstart'].forEach(evt => {
-            compareBtn.addEventListener(evt, (e) => {
-                e.preventDefault();
-                state.holdingCompare = true;
-            });
-        });
-        ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(evt => {
-            compareBtn.addEventListener(evt, () => {
-                state.holdingCompare = false;
-            });
-        });
-
-        // Save Snapshot
-        document.getElementById('snapshotBtn').addEventListener('click', () => {
-            if (!state.cameraActive) {
-                showToast('আগে ক্যামেরা চালু করুন!', 'error');
+        function takeSnapshot() {
+            if (!isCameraActive) {
+                alert('প্রথমে ক্যামেরা চালু করুন!');
                 return;
             }
             const link = document.createElement('a');
-            link.download = `ai-realistic-face-${Date.now()}.png`;
+            link.download = `face-mask-${Date.now()}.png`;
             link.href = canvasElement.toDataURL('image/png');
             link.click();
-            showToast('ছবি সেভ করা হয়েছে!', 'success');
-        });
+        }
 
-        // Fine-tuning Sliders
-        const bindSlider = (id, valId, key, divisor, suffix) => {
-            const el = document.getElementById(id);
-            const label = document.getElementById(valId);
-            if (!el || !label) return;
-            el.addEventListener('input', () => {
-                state.adjustments[key] = parseFloat(el.value) / divisor;
-                label.textContent = el.value + suffix;
-            });
+        window.onload = () => {
+            preloadImages();
+            renderCharacterGrid('all');
         };
-        bindSlider('scaleSlider', 'scaleVal', 'scale', 100, '%');
-        bindSlider('skinMatchSlider', 'skinMatchVal', 'skinMatch', 100, '%');
-        bindSlider('featherSlider', 'featherVal', 'feather', 100, '%');
-        bindSlider('brightnessSlider', 'brightnessVal', 'brightness', 100, '%');
-        bindSlider('opacitySlider', 'opacityVal', 'opacity', 100, '%');
-
-        document.getElementById('resetAdjustmentsBtn').addEventListener('click', () => {
-            state.adjustments = { skinMatch: 0.70, feather: 0.35, brightness: 1.02, scale: 1.06, opacity: 1.00 };
-            document.getElementById('skinMatchSlider').value = 70;
-            document.getElementById('skinMatchVal').textContent = '70%';
-            document.getElementById('featherSlider').value = 35;
-            document.getElementById('featherVal').textContent = '35%';
-            document.getElementById('brightnessSlider').value = 102;
-            document.getElementById('brightnessVal').textContent = '102%';
-            document.getElementById('scaleSlider').value = 106;
-            document.getElementById('scaleVal').textContent = '106%';
-            document.getElementById('opacitySlider').value = 100;
-            document.getElementById('opacityVal').textContent = '100%';
-            state.hairMode = 'auto';
-            document.getElementById('hairStyleSelect').value = 'auto';
-        });
-
-        // Hair Wig Style Selector
-        document.getElementById('hairStyleSelect').addEventListener('change', (e) => {
-            state.hairMode = e.target.value;
-            showToast('হেয়ার স্টাইল আপডেট করা হয়েছে', 'info');
-        });
-
-        // Language Switcher
-        document.getElementById('langToggle').addEventListener('click', () => {
-            state.lang = state.lang === 'bn' ? 'en' : 'bn';
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (i18n[state.lang][key]) {
-                    el.textContent = i18n[state.lang][key];
-                }
-            });
-            selectCharacter(state.selectedCharId);
-        });
-
-        // Initialize on page load
-        window.addEventListener('load', () => {
-            initializeCharacters();
-        });
     </script>
 </body>
 </html>
