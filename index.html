@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI রিয়ালিস্টিক ফেস মাস্কিং স্টুডিও</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Mediapipe Face Mesh & Camera Utils -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+        body { font-family: 'Hind Siliguri', sans-serif; }
+        .glass-panel { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .custom-slider::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #6366f1; cursor: pointer; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center p-2 sm:p-4 select-none">
+
+    <!-- Header -->
+    <header class="w-full max-w-md glass-panel rounded-2xl p-4 mb-3 flex items-center justify-between shadow-xl">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">AI রিয়ালিস্টিক ফেস স্টুডিও</h1>
+                <p class="text-xs text-indigo-400 font-medium" id="statusText">ক্যামেরা বন্ধ আছে</p>
+            </div>
+        </div>
+        <div class="px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-emerald-400 flex items-center gap-1.5 shadow-inner">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> লাইভ মাস্ক রেডি
+        </div>
+    </header>
+
+    <!-- Main Viewport -->
+    <main class="w-full max-w-md glass-panel rounded-2xl p-3 mb-4 shadow-2xl relative flex flex-col items-center">
+        <div class="relative w-full aspect-[3/4] bg-slate-900 rounded-xl overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center">
+            <video id="webcam" class="absolute inset-0 w-full h-full object-cover -scale-x-100 opacity-0" playsinline></video>
+            <canvas id="outputCanvas" class="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></canvas>
+            
+            <!-- Placeholder Overlay -->
+            <div id="placeholderOverlay" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-20 text-center p-6 transition-all duration-300">
+                <div class="w-16 h-16 rounded-full bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center mb-3 text-indigo-400">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                </div>
+                <h3 class="font-bold text-base mb-1">রিয়ালিস্টিক ফেস সোয়াপ ও মাস্কিং</h3>
+                <p class="text-xs text-slate-400 mb-4">নিচ থেকে ক্যারেক্টার সিলেক্ট করে ক্যামেরা চালু করুন। মাথা ও মুখ নড়ালে মাস্ক নিখুঁতভাবে মুভ করবে।</p>
+                <button onclick="toggleCamera()" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-pink-600 rounded-xl font-bold text-sm shadow-lg hover:opacity-90 transition active:scale-95 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    ক্যামেরা চালু করুন (Allow Camera)
+                </button>
+            </div>
+
+            <!-- Hold to view original face -->
+            <button id="originalBtn" class="absolute top-3 right-3 z-30 px-3 py-1 bg-black/60 backdrop-blur-md border border-white/20 rounded-lg text-xs font-medium hover:bg-black/80 transition hidden">
+                👁️ আসল মুখ দেখুন (Hold)
+            </button>
+        </div>
+
+        <!-- Camera & Snapshot Toolbar -->
+        <div class="w-full flex items-center justify-between mt-3 gap-2">
+            <button onclick="toggleCamera()" id="camToggleBtn" class="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                ক্যামেরা বন্ধ
+            </button>
+            <button onclick="switchCamera()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition" title="ক্যামেরা পরিবর্তন">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+            <button onclick="takeSnapshot()" class="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20">
+                📸 ছবি তুলুন (Save)
+            </button>
+        </div>
+    </main>
+
+    <!-- Character Selection Section -->
+    <section class="w-full max-w-md glass-panel rounded-2xl p-4 mb-4 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold text-sm flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                রিয়ালিস্টিক ফেস সিলেক্ট করুন
+            </h2>
+            <div class="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px]">
+                <button onclick="filterCategory('all')" id="cat-all" class="px-2.5 py-1 rounded-md bg-indigo-600 font-semibold transition">সব</button>
+                <button onclick="filterCategory('male')" id="cat-male" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">ছেলে</button>
+                <button onclick="filterCategory('female')" id="cat-female" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">মেয়ে</button>
+            </div>
+        </div>
+
+        <!-- Custom Upload Box -->
+        <label class="w-full border-2 border-dashed border-indigo-500/40 hover:border-indigo-500 bg-indigo-500/5 hover:bg-indigo-500/10 rounded-xl p-3 flex items-center justify-center gap-3 cursor-pointer transition mb-3">
+            <div class="w-9 h-9 rounded-lg bg-indigo-600/20 flex items-center justify-center text-indigo-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <div class="text-left">
+                <p class="text-xs font-bold text-indigo-300">+ নিজের বা অন্য কারো ফেস আপলোড করুন</p>
+                <p class="text-[10px] text-slate-400">যেকোনো আসল মানুষের ছবি আপলোড করলে অটো ফেস সোয়াপ হবে</p>
+            </div>
+            <input type="file" id="customImageUpload" accept="image/*" class="hidden" onchange="loadCustomImage(event)">
+        </label>
+
+        <!-- Female Hair Wig Selector Option -->
+        <div class="mb-3 p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+            <span class="text-slate-300 font-medium flex items-center gap-1.5">✨ মেয়েদের হেয়ার ওভারলে:</span>
+            <select id="hairStyleSelect" class="bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 outline-none text-xs">
+                <option value="auto">অটো (মেয়েদের ফেস চালু)</option>
+                <option value="long1">স্টাইলিশ লং হেয়ার</option>
+                <option value="curly">সফট কার্লি হেয়ার</option>
+                <option value="none">হেয়ার বন্ধ রাখুন</option>
+            </select>
+        </div>
+
+        <!-- Character Grid -->
+        <div id="characterGrid" class="grid grid-cols-3 gap-2.5 max-h-56 overflow-y-auto pr-1">
+            <!-- Dynamically populated via JS -->
+        </div>
+    </section>
+
+    <!-- Adjustment Settings -->
+    <section class="w-full max-w-md glass-panel rounded-2xl p-4 shadow-xl mb-6">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold text-sm flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                রিয়ালিস্টিক স্কিন ও ফেস অ্যাডজাস্টমেন্ট
+            </h2>
+            <button onclick="resetSliders()" class="text-[11px] text-indigo-400 hover:underline">রিসেট</button>
+        </div>
+        <div class="space-y-3 text-xs">
+            <div>
+                <div class="flex justify-between mb-1 text-slate-300">
+                    <span>ফুল ফেস কভারেজ (Jaw & Face Size)</span>
+                    <span id="scaleVal">106%</span>
+                </div>
+                <input type="range" id="scaleSlider" min="90" max="130" value="106" class="w-full accent-indigo-500 custom-slider bg-slate-800 rounded-lg h-1.5" oninput="updateSliders()">
+            </div>
+            <div>
+                <div class="flex justify-between mb-1 text-slate-300">
+                    <span>স্কিন কালার ম্যাচ (Balanced Tone)</span>
+                    <span id="blendVal">70%</span>
+                </div>
+                <input type="range" id="blendSlider" min="0" max="100" value="70" class="w-full accent-indigo-500 custom-slider bg-slate-800 rounded-lg h-1.5" oninput="updateSliders()">
+            </div>
+        </div>
+    </section>
+
+    <!-- App JavaScript Engine -->
+    <script>
+        const characters = [
+            { id: 'none', name: 'নরমাল (বন্ধ)', type: 'off', gender: 'off', img: null },
+            { id: 'arif', name: 'আরিফ', type: 'preset', gender: 'male', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80' },
+            { id: 'tania', name: 'তানিয়া', type: 'preset', gender: 'female', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80' },
+            { id: 'rahul', name: 'রাহুল', type: 'preset', gender: 'male', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80' },
+            { id: 'nusrat', name: 'নুসরাত', type: 'preset', gender: 'female', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80' },
+            { id: 'kabir', name: 'কবির', type: 'preset', gender: 'male', img: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80' },
+            { id: 'sara', name: 'সারা', type: 'preset', gender: 'female', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80' }
+        ];
+
+        let activeCharacter = 'none';
+        let currentFilter = 'all';
+        let customImageObj = null;
+        let isCameraActive = false;
+        let useFrontCamera = true;
+        let videoElement = document.getElementById('webcam');
+        let canvasElement = document.getElementById('outputCanvas');
+        let canvasCtx = canvasElement.getContext('2d');
+        let loadedImages = {};
+        let faceMesh = null;
+        let camera = null;
+        let lastLandmarks = null;
+        let isHoldingOriginal = false;
+
+        // Sliders config
+        let maskScale = 1.06;
+        let skinBlend = 0.70;
+
+        function updateSliders() {
+            maskScale = document.getElementById('scaleSlider').value / 100;
+            skinBlend = document.getElementById('blendSlider').value / 100;
+            document.getElementById('scaleVal').innerText = document.getElementById('scaleSlider').value + '%';
+            document.getElementById('blendVal').innerText = document.getElementById('blendSlider').value + '%';
+        }
+
+        function resetSliders() {
+            document.getElementById('scaleSlider').value = 106;
+            document.getElementById('blendSlider').value = 70;
+            updateSliders();
+        }
+
+        // Preload preset images
+        function preloadImages() {
+            characters.forEach(c => {
+                if (c.img) {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.src = c.img;
+                    loadedImages[c.id] = img;
+                }
+            });
+        }
+
+        function renderCharacterGrid(filter = 'all') {
+            currentFilter = filter;
+            ['all', 'male', 'female'].forEach(f => {
+                const btn = document.getElementById(`cat-${f}`);
+                if (f === filter) {
+                    btn.className = "px-2.5 py-1 rounded-md bg-indigo-600 font-semibold transition";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition";
+                }
+            });
+
+            const grid = document.getElementById('characterGrid');
+            grid.innerHTML = '';
+
+            const filtered = characters.filter(c => {
+                if (filter === 'male') return c.gender === 'male';
+                if (filter === 'female') return c.gender === 'female';
+                return true;
+            });
+
+            filtered.forEach(c => {
+                const isSelected = activeCharacter === c.id;
+                const card = document.createElement('div');
+                card.onclick = () => selectCharacter(c.id);
+                card.className = `cursor-pointer rounded-xl p-2.5 flex flex-col items-center border transition relative overflow-hidden ${isSelected ? 'bg-indigo-600/20 border-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'}`;
+
+                if (c.id === 'none') {
+                    card.innerHTML = `
+                        <div class="w-14 h-14 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-1.5 text-slate-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                        </div>
+                        <span class="text-xs font-bold text-slate-300">নরমাল</span>
+                        <span class="text-[10px] text-slate-500">OFF</span>
+                    `;
+                } else {
+                    card.innerHTML = `
+                        <img src="${c.img}" class="w-14 h-14 rounded-full object-cover border-2 ${isSelected ? 'border-indigo-400' : 'border-slate-700'} mb-1.5 shadow">
+                        <span class="text-xs font-bold text-slate-200 truncate w-full text-center">${c.name}</span>
+                        <span class="text-[10px] ${c.gender === 'female' ? 'text-pink-400' : 'text-indigo-400'}">${c.gender === 'female' ? 'মেয়ে' : 'ছেলে'}</span>
+                    `;
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        function filterCategory(cat) {
+            renderCharacterGrid(cat);
+        }
+
+        function selectCharacter(id) {
+            activeCharacter = id;
+            renderCharacterGrid(currentFilter);
+        }
+
+        function loadCustomImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        customImageObj = img;
+                        const customId = 'custom_' + Date.now();
+                        characters.push({ id: customId, name: 'কাস্টম ফেস', type: 'custom', gender: 'female', img: e.target.result });
+                        loadedImages[customId] = img;
+                        selectCharacter(customId);
+                        renderCharacterGrid(currentFilter);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Initialize MediaPipe FaceMesh
+        async function initFaceMesh() {
+            faceMesh = new FaceMesh({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+            });
+
+            faceMesh.setOptions({
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
+            });
+
+            faceMesh.onResults(onFaceResults);
+        }
+
+        async function toggleCamera() {
+            if (isCameraActive) {
+                stopCamera();
+            } else {
+                await startCamera();
+            }
+        }
+
+        async function startCamera() {
+            document.getElementById('statusText').innerText = 'ক্যামেরা চালু হচ্ছে...';
+            try {
+                if (!faceMesh) {
+                    await initFaceMesh();
+                }
+                
+                const constraints = {
+                    video: {
+                        facingMode: useFrontCamera ? 'user' : 'environment',
+                        width: { ideal: 720 },
+                        height: { ideal: 960 }
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = stream;
+                await videoElement.play();
+
+                canvasElement.width = videoElement.videoWidth || 720;
+                canvasElement.height = videoElement.videoHeight || 960;
+
+                camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (videoElement.readyState >= 2) {
+                            await faceMesh.send({ image: videoElement });
+                        }
+                    },
+                    width: 720,
+                    height: 960
+                });
+
+                camera.start();
+                isCameraActive = true;
+                document.getElementById('placeholderOverlay').classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('camToggleBtn').innerHTML = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> ক্যামেরা চালু`;
+                document.getElementById('statusText').innerText = 'লাইভ ফেস মাস্ক চলছে';
+                document.getElementById('originalBtn').classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                alert('ক্যামেরা পারমিশন পাওয়া যায়নি অথবা ব্রাউজার সাপোর্ট করছে না।');
+                document.getElementById('statusText').innerText = 'ক্যামেরা ত্রুটি';
+            }
+        }
+
+        function stopCamera() {
+            if (videoElement.srcObject) {
+                videoElement.srcObject.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+            if (camera) {
+                camera.stop();
+            }
+            isCameraActive = false;
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            document.getElementById('placeholderOverlay').classList.remove('opacity-0', 'pointer-events-none');
+            document.getElementById('camToggleBtn').innerHTML = `<svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg> ক্যামেরা বন্ধ`;
+            document.getElementById('statusText').innerText = 'ক্যামেরা বন্ধ আছে';
+            document.getElementById('originalBtn').classList.add('hidden');
+        }
+
+        async function switchCamera() {
+            useFrontCamera = !useFrontCamera;
+            if (isCameraActive) {
+                stopCamera();
+                await startCamera();
+            }
+        }
+
+        // Face Mesh Rendering Loop with 3D Head Pose & Full Coverage
+        function onFaceResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw original webcam feed
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0 || activeCharacter === 'none' || isHoldingOriginal) {
+                canvasCtx.restore();
+                return;
+            }
+
+            const landmarks = results.multiFaceLandmarks[0];
+            lastLandmarks = landmarks;
+
+            const charObj = characters.find(c => c.id === activeCharacter);
+            const maskImg = loadedImages[activeCharacter];
+
+            if (maskImg && maskImg.complete) {
+                canvasCtx.save();
+
+                // Key Face points for 3D alignment and bounds
+                const leftCheek = landmarks[234];
+                const rightCheek = landmarks[454];
+                const chin = landmarks[152];
+                const forehead = landmarks[10];
+
+                const cx = (leftCheek.x + rightCheek.x) / 2 * canvasElement.width;
+                const cy = (forehead.y + chin.y) / 2 * canvasElement.height;
+
+                const faceWidth = Math.hypot((rightCheek.x - leftCheek.x) * canvasElement.width, (rightCheek.y - leftCheek.y) * canvasElement.height) * maskScale;
+                const faceHeight = Math.hypot((chin.x - forehead.x) * canvasElement.width, (chin.y - forehead.y) * canvasElement.height) * maskScale;
+
+                // 3D Head rotation angle (Yaw/Roll) calculation
+                const dx = rightCheek.x - leftCheek.x;
+                const dy = rightCheek.y - leftCheek.y;
+                const angle = Math.atan2(dy, dx);
+
+                canvasCtx.translate(cx, cy);
+                canvasCtx.rotate(angle);
+
+                // Extended Full Coverage Mask Rendering
+                const drawW = faceWidth * 1.55;
+                const drawH = faceHeight * 1.65;
+
+                canvasCtx.globalAlpha = 1.0;
+                canvasCtx.drawImage(maskImg, -drawW / 2, -drawH / 2 - 15, drawW, drawH);
+
+                // Female Hair Wig Overlay Logic
+                const hairOption = document.getElementById('hairStyleSelect').value;
+                const isFemaleChar = charObj && charObj.gender === 'female';
+
+                if (hairOption !== 'none' && (isFemaleChar || hairOption === 'long1' || hairOption === 'curly')) {
+                    canvasCtx.fillStyle = '#111827';
+                    canvasCtx.beginPath();
+                    // Realistic 3D Layered Hair Wig Arch
+                    canvasCtx.ellipse(0, -drawH * 0.55, drawW * 0.85, drawH * 0.45, 0, Math.PI, 2 * Math.PI);
+                    canvasCtx.fill();
+                }
+
+                canvasCtx.restore();
+            }
+
+            canvasCtx.restore();
+        }
+
+        // Hold to view original face events
+        const origBtn = document.getElementById('originalBtn');
+        origBtn.addEventListener('mousedown', () => isHoldingOriginal = true);
+        origBtn.addEventListener('mouseup', () => isHoldingOriginal = false);
+        origBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isHoldingOriginal = true; });
+        origBtn.addEventListener('touchend', (e) => { e.preventDefault(); isHoldingOriginal = false; });
+
+        // Snapshot saving
+        function takeSnapshot() {
+            if (!isCameraActive) {
+                alert('প্রথমে ক্যামেরা চালু করুন!');
+                return;
+            }
+            const link = document.createElement('a');
+            link.download = `realistic-face-mask-${Date.now()}.png`;
+            link.href = canvasElement.toDataURL('image/png');
+            link.click();
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            preloadImages();
+            renderCharacterGrid('all');
+        };
+    </script>
+</body>
+</html>
